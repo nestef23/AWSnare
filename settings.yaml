@@ -1,0 +1,3 @@
+AWS_all_regions: us-east-1,us-west-2,eu-west-1
+AWS_default_region: lele
+AWSnare_tag: AWSnare
