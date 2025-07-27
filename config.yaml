@@ -1,5 +1,5 @@
 AWS_configured_regions:
 - us-east-1
 - eu-central-1
-AWS_default_region: us-east-1
+AWS_default_region: eu-central-1
 AWSnare_tag: AWSnare

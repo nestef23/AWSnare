@@ -17,9 +17,8 @@ def handle_get(args):
         print(f"Unsupported resource for get: {args.resource}")
 
 def handle_create(args):
-    if args.resource == "iam":
-        print("Creating IAM resource...")
-        # your_function_to_create_iam()
+    if args.resource == "S3":
+        AWS_S3_helpers.create_s3_bucket()
     else:
         print(f"Unsupported resource for create: {args.resource}")
 

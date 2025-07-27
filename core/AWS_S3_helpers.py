@@ -2,6 +2,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 from core import config_helpers
+from core import random_helpers
+
 
 default_region = config_helpers.default_region_get()
 all_regions = config_helpers.regions_get()
@@ -28,3 +30,39 @@ def get_s3_bucket_names():
             # Ignore buckets with no tags or access denied
             if e.response['Error']['Code'] != 'NoSuchTagSet':
                 print(f"Error getting tags for {bucket_name}: {e}")
+
+def create_s3_bucket():
+    """Create a new S3 bucket."""
+
+    tmp_name = random_helpers.generate_aws_resource_name()
+
+    bucket_name = input(f"Enter the name for the new S3 bucket: (default: {tmp_name}) ").strip() or tmp_name
+    chosen_region = input(f"Enter the region for the new S3 bucket (default: {default_region}): ").strip() or default_region
+
+    s3 = boto3.client('s3')
+
+    # Create the bucket first
+    try:
+        if chosen_region == "us-east-1":
+            s3.create_bucket(Bucket=bucket_name)
+        else:
+            s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={
+                'LocationConstraint': chosen_region
+            })
+        print(f"S3 bucket '{bucket_name}' created successfully.")
+    except ClientError as e:
+        print(f"Error creating S3 bucket: {e}")
+
+    # Apply tags separately
+    try:
+        s3.put_bucket_tagging(
+            Bucket=bucket_name,
+            Tagging={
+                'TagSet': [
+                    {'Key': AWSnare_tag, 'Value': 'true'}
+                ]
+            }
+        )
+        print(f"Tag '{AWSnare_tag}' added to S3 bucket '{bucket_name}'.")
+    except ClientError as e:
+        print(f"Error applying tags to S3 bucket: {e}")
