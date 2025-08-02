@@ -4,3 +4,4 @@ os
 json
 gzip
 datetime
+import uuid

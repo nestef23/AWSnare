@@ -20,7 +20,7 @@ def handle_get(args):
 
 def handle_create(args):
     if args.resource == "S3":
-        AWS_S3_helpers.create_s3_bucket()
+        AWS_S3_helpers.create_s3_bucket(True)
     else:
         print(f"Unsupported resource for create: {args.resource}")
 
@@ -44,9 +44,11 @@ def handle_config(args):
         print(f"Unsupported setting for config: {args.setting}")
 
 def handle_detect(args):
-    if args.method == "cloudtrail-download":
+    if args.method == "setup":
+        AWS_cloudtrail_helpers.create_cloudtrail_trail()
+    elif args.method == "cloudtrail-download":
         AWS_cloudtrail_helpers.detect_cloudtrail_events_locally()
-    if args.method == "cloudtrail-local":
+    elif args.method == "cloudtrail-local":
         detection_logic.detect_cloudtrail()
     else:
         print(f"Unsupported values for detect: {args.method}")
@@ -83,7 +85,7 @@ def main():
 
     # detect command
     config_parser = subparsers.add_parser('detect', help="Detect activity in the snares")
-    config_parser.add_argument('method', choices=['cloudtrail-download','cloudtrail-local','cloudtrail-lake'], help="Detection method")
+    config_parser.add_argument('method', choices=['setup','cloudtrail-download','cloudtrail-local','cloudtrail-lake'], help="Detection method")
     config_parser.set_defaults(func=handle_detect)
 
     # Parse and dispatch

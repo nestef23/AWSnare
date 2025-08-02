@@ -35,27 +35,29 @@ def get_s3_bucket_names():
             if e.response['Error']['Code'] != 'NoSuchTagSet':
                 print(f"Error getting tags for {bucket_name}: {e}")
 
-def create_s3_bucket():
+def create_s3_bucket(snare: bool, bucket_name = "", chosen_region = ""):
     """Create a new S3 bucket."""
 
     tmp_name = random_helpers.generate_aws_resource_name()
 
-    bucket_name = input(f"Enter the name for the new S3 bucket: (default: {tmp_name}) ").strip() or tmp_name
-    chosen_region = input(f"Enter the region for the new S3 bucket (default: {default_region}): ").strip() or default_region
+    if not bucket_name:
+        bucket_name = input(f"Enter the name for the new S3 bucket: (default: {tmp_name}) ").strip() or tmp_name
+    if not chosen_region:
+        chosen_region = input(f"Enter the region for the new S3 bucket (default: {default_region}): ").strip() or default_region
 
     s3 = boto3.client('s3')
 
     # Create the bucket first
     try:
         if chosen_region == "us-east-1":
-            s3.create_bucket(Bucket=bucket_name)
+            response = s3.create_bucket(Bucket=bucket_name)
         else:
-            s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={
+            response = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={
                 'LocationConstraint': chosen_region
             })
-        print(f"S3 bucket '{bucket_name}' created successfully.")
+        print(f"[+] S3 bucket '{bucket_name}' created successfully.")
     except ClientError as e:
-        print(f"Error creating S3 bucket: {e}")
+        raise RuntimeError("[!] Error creating S3 bucket: {e}")
 
     # Apply tags separately
     try:
@@ -67,9 +69,14 @@ def create_s3_bucket():
                 ]
             }
         )
-        print(f"Tag '{AWSnare_tag}' added to S3 bucket '{bucket_name}'.")
+        print(f"[+] Tag '{AWSnare_tag}' added to S3 bucket '{bucket_name}'.")
     except ClientError as e:
-        print(f"Error applying tags to S3 bucket: {e}")
+        print(f"[!] Error applying tags to S3 bucket: {e}")
+
+    if snare:
+        arn = f"arn:aws:s3:::{bucket_name}"
+        print(f"[+] Added arn '{arn}' to the snares list")
+        config_helpers.AWS_snares_arn_list_add(arn)
 
 def download_cloudtrail_logs(bucket_name, account_id, regions, start_date, end_date):
     """
@@ -104,3 +111,37 @@ def download_cloudtrail_logs(bucket_name, account_id, regions, start_date, end_d
 
         current_date += timedelta(days=1)
     print("Finished downloading logs")
+
+def attach_bucket_policy(bucket_name, account_id):
+    """Attach the required bucket policy for CloudTrail."""
+
+    s3 = boto3.client('s3')
+
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AWSCloudTrailAclCheck",
+                "Effect": "Allow",
+                "Principal": {"Service": "cloudtrail.amazonaws.com"},
+                "Action": "s3:GetBucketAcl",
+                "Resource": f"arn:aws:s3:::{bucket_name}"
+            },
+            {
+                "Sid": "AWSCloudTrailWrite",
+                "Effect": "Allow",
+                "Principal": {"Service": "cloudtrail.amazonaws.com"},
+                "Action": "s3:PutObject",
+                "Resource": f"arn:aws:s3:::{bucket_name}/AWSLogs/{account_id}/*",
+                "Condition": {
+                    "StringEquals": {"s3:x-amz-acl": "bucket-owner-full-control"}
+                }
+            }
+        ]
+    }
+
+    print(f"[+] Attaching clouudtrail bucket policy to {bucket_name}")
+    s3.put_bucket_policy(
+        Bucket=bucket_name,
+        Policy=json.dumps(policy)
+    )

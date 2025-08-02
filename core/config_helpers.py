@@ -1,4 +1,5 @@
 import yaml
+from typing import List
 
 settings_file = "config.yaml"
 
@@ -70,6 +71,13 @@ def cloudtrail_name_get():
     else:
         return "No configured Cloudtrail. Please configure / create trail first."
     
+def cloudtrail_name_set(trail_name):
+    settings = load_settings()
+
+    settings["AWS_cloudtrail_name"] = trail_name
+    
+    save_settings(settings)
+    
 def account_id_get():
     settings = load_settings()
     if "AWS_account_id" in settings:
@@ -77,10 +85,34 @@ def account_id_get():
     else:
         return "No configured account id. Please configure account id first"
     
+def AWS_snares_arn_list_get():
+    settings = load_settings()
+    try:
+        return settings["AWS_snares_arn_list"]
+    except:
+        print("No configured account id. Please configure account id first")
+
+def AWS_snares_arn_list_add(arn: str):
+    settings = load_settings()
+    
+    # Initialize the list if it doesn't exist
+    if "AWS_snares_arn_list" not in settings:
+        settings["AWS_snares_arn_list"] = []
+
+    settings["AWS_snares_arn_list"].append(arn)
+    save_settings(settings)
+
+def AWS_snares_arn_list_remove(arn: str):
+    settings = load_settings()
+
+    settings["AWS_snares_arn_list"].remove(arn)
+    save_settings(settings)
+
+
+    
 def regions_add():
     """Add AWS region to AWS_all_regions."""
     settings = load_settings()
-
     # Initialize the list if it doesn't exist
     if "AWS_configured_regions" not in settings:
         settings["AWS_configured_regions"] = []
@@ -107,7 +139,6 @@ def regions_add():
 
 def regions_remove():
     settings = load_settings()
-    region = region.strip().lower()
 
     rm_region = input("Enter AWS region to remove (e.g., us-east-1): ").strip().lower()
         

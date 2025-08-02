@@ -1,5 +1,7 @@
 import boto3
+from botocore.exceptions import ClientError
 from datetime import date, timedelta, datetime
+import uuid
 
 from core import config_helpers
 from core import AWS_S3_helpers
@@ -35,3 +37,69 @@ def detect_cloudtrail_events_locally():
 
     detection_logic.detect_cloudtrail()
 
+def update_selectors(trail_region, trail_name):
+    ARN_list = config_helpers.AWS_snares_arn_list_get()
+
+    client = boto3.client('cloudtrail', region_name=trail_region)
+    print(f"[+] Configuring data event selectors for Cloudtrail...")
+    client.put_event_selectors(
+        TrailName=trail_name,
+        EventSelectors=[
+            {
+                "ReadWriteType": "All",  # or 'ReadOnly' / 'WriteOnly'
+                "IncludeManagementEvents": False,  # No management events
+                "DataResources": [
+                    {
+                        "Type": "AWS::S3::Object",  # or AWS::Lambda::Function
+                        "Values": [r+"/*" for r in ARN_list if ":s3:::" in r]
+                    },
+                    {
+                        "Type": "AWS::Lambda::Function",
+                        "Values": [r for r in ARN_list if ":lambda:" in r]
+                    }
+                ]
+            }
+        ]
+    )
+
+def create_cloudtrail_trail():
+    """Create cloudtrail trail where snare logs will be stored."""
+
+    print("This function will create a new CloudTrail trail and respective S3 bucket for logs\n")
+
+    trail_region = input(f"Region where trail will be created (default: {default_region}) ").strip() or default_region
+    client = boto3.client('cloudtrail', region_name=trail_region)
+
+    random_suffix = uuid.uuid4().hex[:8]
+    trail_name = (input(f"New trail name (default: {AWSnare_tag}-{random_suffix}) ").strip() or AWSnare_tag+"-"+random_suffix).lower()
+    trail_bucket_name = (input(f"New trail bucket name (default: {trail_name}-bucket):" ).strip() or trail_name+"-bucket").lower()
+
+    AWS_S3_helpers.create_s3_bucket(False, trail_bucket_name, trail_region)
+
+    AWS_S3_helpers.attach_bucket_policy(trail_bucket_name, account_id)
+
+    try:
+        response = client.create_trail(
+        Name=trail_name,
+        S3BucketName=trail_bucket_name,
+        #SnsTopicName='string', TODO implement SNS?
+        IncludeGlobalServiceEvents=False,
+        IsMultiRegionTrail=False,
+        IsOrganizationTrail=False,
+        TagsList=[
+            {
+                'Key': AWSnare_tag,
+                'Value': 'true'
+            }
+        ]
+        )
+        print(f"[+] Trail {trail_name} created successfully.")
+    except ClientError as e:
+        print(f"[!] Error creating trail: {e}")
+
+    update_selectors(trail_region, trail_name)
+
+    config_helpers.cloudtrail_name_set(trail_name)
+
+    print(f"[+] Starting logging for {trail_name}")
+    client.start_logging(Name=trail_name)
