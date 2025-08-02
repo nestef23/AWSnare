@@ -1,5 +1,7 @@
+AWS_account_id: XXXXXXXXXXXX
 AWS_configured_regions:
 - us-east-1
 - eu-central-1
 AWS_default_region: eu-central-1
+AWS_cloudtrail_name: AWSnare
 AWSnare_tag: AWSnare

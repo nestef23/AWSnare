@@ -1,0 +1,6 @@
+rules:
+  - name: S3_download_file
+    description: File was downloaded from the S3 bucket.
+    logic:
+      eventSource: s3.amazonaws.com
+      eventName: GetObject

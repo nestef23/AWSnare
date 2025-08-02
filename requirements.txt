@@ -1,2 +1,6 @@
 boto3
 pyyaml
+os
+json
+gzip
+datetime

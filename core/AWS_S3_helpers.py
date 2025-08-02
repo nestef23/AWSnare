@@ -1,5 +1,9 @@
 import boto3
 from botocore.exceptions import ClientError
+import os
+import json
+import gzip
+from datetime import timedelta
 
 from core import config_helpers
 from core import random_helpers
@@ -66,3 +70,37 @@ def create_s3_bucket():
         print(f"Tag '{AWSnare_tag}' added to S3 bucket '{bucket_name}'.")
     except ClientError as e:
         print(f"Error applying tags to S3 bucket: {e}")
+
+def download_cloudtrail_logs(bucket_name, account_id, regions, start_date, end_date):
+    """
+    Downloads CloudTrail logs for multiple dates and regions.
+    start_date / end_date: datetime.date objects
+    regions: list of AWS region strings
+    """
+
+    s3 = boto3.client('s3')
+
+    download_dir = 'logs_cloudtrail'
+
+    current_date = start_date
+    while current_date <= end_date:
+        for region in regions:
+            prefix = f"AWSLogs/{account_id}/CloudTrail/{region}/{current_date.year}/{current_date.month:02}/{current_date.day:02}/"
+
+            paginator = s3.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    filename = key.split("/")[-1]
+                    local_path = os.path.join(download_dir, f"{region}_{current_date}_{filename}")
+
+                    print(f"[{current_date} - {region}] Downloading {key}...")
+                    s3.download_file(bucket_name, key, local_path)
+
+                    # Optional: Parse logs immediately
+                    with gzip.open(local_path, "rt") as f:
+                        log_data = json.load(f)
+                        print(f"  → {len(log_data['Records'])} events")
+
+        current_date += timedelta(days=1)
+    print("Finished downloading logs")

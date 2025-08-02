@@ -63,6 +63,20 @@ def regions_get():
     else:
         return ["No configured default region found. Please configure region first"]
     
+def cloudtrail_name_get():
+    settings = load_settings()
+    if "AWS_cloudtrail_name" in settings:
+        return settings["AWS_cloudtrail_name"]
+    else:
+        return "No configured Cloudtrail. Please configure / create trail first."
+    
+def account_id_get():
+    settings = load_settings()
+    if "AWS_account_id" in settings:
+        return settings["AWS_account_id"]
+    else:
+        return "No configured account id. Please configure account id first"
+    
 def regions_add():
     """Add AWS region to AWS_all_regions."""
     settings = load_settings()
