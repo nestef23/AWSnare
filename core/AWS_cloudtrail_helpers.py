@@ -31,14 +31,19 @@ def detect_cloudtrail_events_locally():
         start_date = start_date_tmp
     end_date = date.today()
 
-    print(f"Downloading Cloudtrail logs from bucket {S3_bucket_name} for configured regions {all_regions}")
+    print(f"[+] Downloading Cloudtrail logs from bucket {S3_bucket_name} for configured regions {all_regions}")
 
     AWS_S3_helpers.download_cloudtrail_logs(S3_bucket_name, account_id, all_regions, start_date, end_date)
 
     detection_logic.detect_cloudtrail()
 
-def update_selectors(trail_region, trail_name):
+def update_selectors(trail_region = "", trail_name = ""):
     ARN_list = config_helpers.AWS_snares_arn_list_get()
+
+    if not trail_region:
+        trail_region = default_region
+    if not trail_name:
+        trail_name = cloudtrail_trail_name
 
     client = boto3.client('cloudtrail', region_name=trail_region)
     print(f"[+] Configuring data event selectors for Cloudtrail...")
@@ -51,7 +56,7 @@ def update_selectors(trail_region, trail_name):
                 "DataResources": [
                     {
                         "Type": "AWS::S3::Object",  # or AWS::Lambda::Function
-                        "Values": [r+"/*" for r in ARN_list if ":s3:::" in r]
+                        "Values": [r+"/" for r in ARN_list if ":s3:::" in r]
                     },
                     {
                         "Type": "AWS::Lambda::Function",
