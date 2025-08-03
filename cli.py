@@ -1,10 +1,11 @@
+"""Main module providing CLI for user interaction."""
+
 import argparse
 
-from core import AWS_S3_helpers  # Importing the helper functions
-from core import AWS_secret_helpers
-from core import AWS_cloudtrail_helpers 
+from core import aws_s3_helpers  # Importing the helper functions
+from core import aws_secret_helpers
+from core import aws_cloudtrail_helpers
 from core import config_helpers
-from core import detection_logic
 
 # -----------------------------
 # Handlers for each command
@@ -12,26 +13,26 @@ from core import detection_logic
 
 def handle_get(args):
     if args.resource == "S3":
-        AWS_S3_helpers.get_s3_bucket_names()
+        aws_s3_helpers.get_s3_bucket_names()
     elif args.resource == "secret":
-        AWS_secret_helpers.get_secrets_names()
+        aws_secret_helpers.get_secrets_names()
     elif args.resource == "cloudtrail":
-        AWS_cloudtrail_helpers.get_cloudtrail_trail_names()
+        aws_cloudtrail_helpers.get_cloudtrail_trail_names()
     else:
         print(f"Unsupported resource for get: {args.resource}")
 
 def handle_create(args):
     if args.resource == "S3":
-        AWS_S3_helpers.create_s3_bucket(snare=True)
+        aws_s3_helpers.create_s3_bucket(snare=True)
     elif args.resource == "secret":
-        AWS_secret_helpers.create_secret(snare=True)
+        aws_secret_helpers.create_secret(snare=True)
     else:
         print(f"Unsupported resource for create: {args.resource}")
 
 def handle_upload(args):
     if args.resource == "S3":
         bucket_name = input("S3 bucket name to upload to: ").strip()
-        AWS_S3_helpers.upload_snare_data(bucket_name)
+        aws_s3_helpers.upload_snare_data(bucket_name)
     else:
         print(f"Unsupported resource for create: {args.resource}")
 
@@ -46,7 +47,7 @@ def handle_config(args):
     if args.setting == "show":
         config_helpers.config_print()
     elif args.setting == "def_reg":
-        config_helpers.default_region_set() 
+        config_helpers.default_region_set()
     elif args.setting == "add_reg":
         config_helpers.regions_add()
     elif args.setting == "rm_reg":
@@ -56,11 +57,11 @@ def handle_config(args):
 
 def handle_detect(args):
     if args.method == "setup":
-        AWS_cloudtrail_helpers.create_cloudtrail_trail()
+        aws_cloudtrail_helpers.create_cloudtrail_trail()
     elif args.method == "update":
-        AWS_cloudtrail_helpers.update_selectors()
+        aws_cloudtrail_helpers.update_selectors()
     elif args.method == "run-local":
-        AWS_cloudtrail_helpers.detect_cloudtrail_events_locally()
+        aws_cloudtrail_helpers.detect_cloudtrail_events_locally()
     else:
         print(f"Unsupported values for detect: {args.method}")
 
@@ -72,16 +73,16 @@ def main():
     parser = argparse.ArgumentParser(description='AWSnare CLI - Manage AWS snares and monitor logs')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    AWS_resource_types = ['S3', 'secret', 'cloudtrail']
+    aws_resource_types = ['S3', 'secret', 'cloudtrail']
 
     # Get command
     get_parser = subparsers.add_parser('get', help="List existing snares")
-    get_parser.add_argument('resource', choices = AWS_resource_types, help="Snare type to list")
+    get_parser.add_argument('resource', choices = aws_resource_types, help="Snare type to list")
     get_parser.set_defaults(func=handle_get)
 
     # Create command
     create_parser = subparsers.add_parser('create', help="Create a new snare")
-    create_parser.add_argument('resource', choices = AWS_resource_types, help="Snare type to create")
+    create_parser.add_argument('resource', choices = aws_resource_types, help="Snare type to create")
     create_parser.set_defaults(func=handle_create)
 
     # Upload
@@ -91,7 +92,7 @@ def main():
 
     # Delete command
     delete_parser = subparsers.add_parser('delete', help="Delete existing snare")
-    delete_parser.add_argument('resource', choices = AWS_resource_types, help="Snare type to delete")
+    delete_parser.add_argument('resource', choices = aws_resource_types, help="Snare type to delete")
     delete_parser.set_defaults(func=handle_delete)
 
     # config command

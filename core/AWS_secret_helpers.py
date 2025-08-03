@@ -16,10 +16,10 @@ AWSnare_tag = config_helpers.AWSnare_tag_get()
 def get_secrets_names():
     """Retrieve a list of secrets from Secrets manager."""
 
-    print(f"Fetching secrets with tag: '{AWSnare_tag}'...")
+    print(f"[+] Fetching secrets with tag: '{AWSnare_tag}'...")
 
     for region_name in all_regions:
-        session = boto3.session.Session()
+        session = boto3.Session()
         client = session.client(
             service_name='secretsmanager',
             region_name=region_name,

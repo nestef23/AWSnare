@@ -1,3 +1,5 @@
+"""Module for AWS S3 interactions."""
+
 import boto3
 from botocore.exceptions import ClientError
 import os
@@ -33,7 +35,7 @@ def get_s3_bucket_names():
         except ClientError as e:
             # Ignore buckets with no tags or access denied
             if e.response['Error']['Code'] != 'NoSuchTagSet':
-                    print(f"Error getting tags for {bucket_name}: {e}")
+                print(f"Error getting tags for {bucket_name}: {e}")
 
 def create_s3_bucket(snare: bool, bucket_name = "", chosen_region = ""):
     """Create a new S3 bucket."""
@@ -156,7 +158,7 @@ def cleanup_cloudtrail_logs():
                 os.remove(file_path)
             except Exception as e:
                 print(f"[!] Failed to delete {file_path}: {e}")
-    
+
 
 def attach_bucket_policy(bucket_name, account_id):
     """Attach the required bucket policy for CloudTrail."""

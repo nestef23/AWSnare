@@ -4,7 +4,7 @@ from datetime import date, timedelta, datetime
 import uuid
 
 from core import config_helpers
-from core import AWS_S3_helpers
+from core import aws_s3_helpers
 from core import detection_logic
 
 default_region = config_helpers.default_region_get()
@@ -61,13 +61,13 @@ def detect_cloudtrail_events_locally():
 
         print(f"[+] Downloading Cloudtrail logs from bucket {S3_bucket_name} for configured regions {all_regions}")
 
-        AWS_S3_helpers.download_cloudtrail_logs(S3_bucket_name, account_id, all_regions, start_date, end_date)
+        aws_s3_helpers.download_cloudtrail_logs(S3_bucket_name, account_id, all_regions, start_date, end_date)
 
     detection_logic.detect_cloudtrail()
 
     cleanup = input("\n[?] Delete downloaded logs? yes/no (default: no): ").strip().lower()
     if cleanup in ("y", "yes", "Y", "YES"):
-        AWS_S3_helpers.cleanup_cloudtrail_logs()
+        aws_s3_helpers.cleanup_cloudtrail_logs()
 
 def update_selectors(trail_region = "", trail_name = ""):
     ARN_list = config_helpers.AWS_snares_arn_list_get()
@@ -112,9 +112,9 @@ def create_cloudtrail_trail():
     trail_name = (input(f"New trail name (default: {AWSnare_tag}-{random_suffix}) ").strip() or AWSnare_tag+"-"+random_suffix).lower()
     trail_bucket_name = (input(f"New trail bucket name (default: {trail_name}-bucket):" ).strip() or trail_name+"-bucket").lower()
 
-    AWS_S3_helpers.create_s3_bucket(False, trail_bucket_name, trail_region)
+    aws_s3_helpers.create_s3_bucket(False, trail_bucket_name, trail_region)
 
-    AWS_S3_helpers.attach_bucket_policy(trail_bucket_name, account_id)
+    aws_s3_helpers.attach_bucket_policy(trail_bucket_name, account_id)
 
     try:
         response = client.create_trail(
