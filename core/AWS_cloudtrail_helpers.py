@@ -13,6 +13,32 @@ AWSnare_tag = config_helpers.AWSnare_tag_get()
 cloudtrail_trail_name = config_helpers.cloudtrail_name_get()
 account_id = config_helpers.account_id_get()
 
+def get_cloudtrail_trail_names():
+    """Retrieve a list of Cloudtrail trails"""
+
+    print(f"[+] Fetching Cloudtrail trails with tag: '{AWSnare_tag}'...")
+
+    for region_name in all_regions:
+        client = boto3.client('cloudtrail',region_name=region_name)
+        print(f"Trails in region {region_name}:")
+
+        # List all buckets
+        response = client.list_trails()
+
+        for trail in response['Trails']:
+            trail_name = trail['Name']
+            trail_ARN = trail['TrailARN']
+            trail_region = trail['HomeRegion']
+            try:
+                tagging = client.list_tags(ResourceIdList=[trail_ARN])
+                tag_set = tagging['ResourceTagList'][0]['TagsList']
+                if any(tag['Key'] == AWSnare_tag for tag in tag_set):
+                    print (trail_name)
+            except ClientError as e:
+                # Ignore buckets with no tags or access denied
+                if e.response['Error']['Code'] != 'NoSuchTagSet':
+                    print(f"Error getting tags for {trail_name}: {e}")
+
 def detect_cloudtrail_events_locally():
     """Detect any activity regarding the snares that are set up"""
 
@@ -72,6 +98,7 @@ def update_selectors(trail_region = "", trail_name = ""):
             }
         ]
     )
+    print(f"[+] Updated Cloudtrail '{trail_name}' selectors")
 
 def create_cloudtrail_trail():
     """Create cloudtrail trail where snare logs will be stored."""

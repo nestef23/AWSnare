@@ -4,6 +4,7 @@ import os
 import json
 import gzip
 from datetime import timedelta
+from pathlib import Path
 
 from core import config_helpers
 from core import random_helpers
@@ -16,8 +17,7 @@ AWSnare_tag = config_helpers.AWSnare_tag_get()
 def get_s3_bucket_names():
     """Retrieve a list of S3 bucket names."""
 
-    print(f"Fetching S3 buckets with tag: '{AWSnare_tag}'...")
-
+    print(f"[+] Fetching S3 buckets with tag: '{AWSnare_tag}'...")
     s3 = boto3.client('s3')
 
     # List all buckets
@@ -29,11 +29,11 @@ def get_s3_bucket_names():
             tagging = s3.get_bucket_tagging(Bucket=bucket_name)
             tag_set = tagging['TagSet']
             if any(tag['Key'] == AWSnare_tag for tag in tag_set):
-                print (bucket_name)
+                print (f"- {bucket_name}")
         except ClientError as e:
             # Ignore buckets with no tags or access denied
             if e.response['Error']['Code'] != 'NoSuchTagSet':
-                print(f"Error getting tags for {bucket_name}: {e}")
+                    print(f"Error getting tags for {bucket_name}: {e}")
 
 def create_s3_bucket(snare: bool, bucket_name = "", chosen_region = ""):
     """Create a new S3 bucket."""
@@ -73,10 +73,45 @@ def create_s3_bucket(snare: bool, bucket_name = "", chosen_region = ""):
     except ClientError as e:
         print(f"[!] Error applying tags to S3 bucket: {e}")
 
+    # If snare bucket - add ARN to config.yaml
     if snare:
         arn = f"arn:aws:s3:::{bucket_name}"
         print(f"[+] Added arn '{arn}' to the snares list")
         config_helpers.AWS_snares_arn_list_add(arn)
+
+        uplod_mock_data = input(f"[?] Do you want to upload mock data file to the S3 bucket? yes/no (default: yes): ").strip()
+        while uplod_mock_data not in ("n", "no", "N", "NO"):
+            upload_snare_data(bucket_name)
+            uplod_mock_data = input(f"[?] Do you want to upload another mock data file> yes/no (default: yes): ").strip()
+
+
+def upload_snare_data(bucket_name):
+    base_dir = Path(__file__).parent
+    mock_s3_files_dir = base_dir / ".." / "snare_data" / "S3"
+    print(f"[+] Listing available files in '{mock_s3_files_dir}'... \n")
+    for filename in os.listdir(mock_s3_files_dir):
+        print(filename)
+
+    chosen_file = input(f"[?] Type filename of the chosen file: ").strip()
+    chosen_filepath = None
+
+    for filename in os.listdir(mock_s3_files_dir):
+        filepath = os.path.join(mock_s3_files_dir, filename)
+        if chosen_file in filename:
+            chosen_filepath = filepath
+            break
+
+    if chosen_filepath is None:
+        print(f"[!] Cannot find file '{chosen_file}'")
+        exit(1)
+
+    s3 = boto3.client('s3')
+    try:
+        print(f"[+] Uploading {chosen_file}")
+        s3.upload_file(chosen_filepath, bucket_name, chosen_file)
+        print(f"[+] Succesfully uploaded '{chosen_file}' to the '{bucket_name}'")
+    except ClientError as e:
+        raise RuntimeError("[!] Error uploading file: {e}")
 
 def download_cloudtrail_logs(bucket_name, account_id, regions, start_date, end_date):
     """

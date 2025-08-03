@@ -15,6 +15,8 @@ def handle_get(args):
         AWS_S3_helpers.get_s3_bucket_names()
     elif args.resource == "secret":
         AWS_secret_helpers.get_secrets_names()
+    elif args.resource == "cloudtrail":
+        AWS_cloudtrail_helpers.get_cloudtrail_trail_names()
     else:
         print(f"Unsupported resource for get: {args.resource}")
 
@@ -23,6 +25,13 @@ def handle_create(args):
         AWS_S3_helpers.create_s3_bucket(snare=True)
     elif args.resource == "secret":
         AWS_secret_helpers.create_secret(snare=True)
+    else:
+        print(f"Unsupported resource for create: {args.resource}")
+
+def handle_upload(args):
+    if args.resource == "S3":
+        bucket_name = input("S3 bucket name to upload to: ").strip()
+        AWS_S3_helpers.upload_snare_data(bucket_name)
     else:
         print(f"Unsupported resource for create: {args.resource}")
 
@@ -63,7 +72,7 @@ def main():
     parser = argparse.ArgumentParser(description='AWSnare CLI - Manage AWS snares and monitor logs')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    AWS_resource_types = ['S3', 'secret', 'IAM_account', 'lambda', 'EC2_key_pair']
+    AWS_resource_types = ['S3', 'secret', 'cloudtrail']
 
     # Get command
     get_parser = subparsers.add_parser('get', help="List existing snares")
@@ -74,6 +83,11 @@ def main():
     create_parser = subparsers.add_parser('create', help="Create a new snare")
     create_parser.add_argument('resource', choices = AWS_resource_types, help="Snare type to create")
     create_parser.set_defaults(func=handle_create)
+
+    # Upload
+    upload_parser = subparsers.add_parser('upload', help="Upload mock data to snare")
+    upload_parser.add_argument('resource', choices = ['S3'], help="Snare type to upload to")
+    upload_parser.set_defaults(func=handle_upload)
 
     # Delete command
     delete_parser = subparsers.add_parser('delete', help="Delete existing snare")
