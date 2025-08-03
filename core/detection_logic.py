@@ -5,6 +5,8 @@ import yaml
 from typing import List, Dict, Any
 from datetime import datetime
 
+from core import config_helpers
+
 def load_rules_from_yaml(rules_file: str) -> List[Dict[str, Any]]:
     """Load detection rules from YAML."""
     with open(rules_file, "r") as f:
@@ -19,8 +21,15 @@ def load_cloudtrail_file(filepath: str) -> List[Dict]:
         return data.get("Records", [])
 
 
-def event_matches_rule(event: Dict, logic: Dict[str, Any]) -> bool:
+def event_matches_rule(event: Dict, logic: Dict[str, Any], snares_list: List) -> bool:
     """Check if a CloudTrail event matches a rule's logic."""
+    # Check if any ARN from snares_list is present in the event (pre-filtering)
+    for arn in snares_list:
+        if arn in str(event):
+            break
+    else:
+        return False
+    # Check if any detection logic matches
     for field, expected in logic.items():
         value = event.get(field)
         if isinstance(expected, list):
@@ -32,33 +41,43 @@ def event_matches_rule(event: Dict, logic: Dict[str, Any]) -> bool:
     return True
 
 
-def scan_file(filepath: str, rules: List[Dict[str, Any]]) -> List[Dict]:
+def scan_file(filepath: str, rules: List[Dict[str, Any]], snares_list: List) -> List[Dict]:
     """Scan a single CloudTrail .gz file for rule matches."""
     events = load_cloudtrail_file(filepath)
     hits = []
 
     for event in events:
         for rule in rules:
-            if event_matches_rule(event, rule["logic"]):
+            if event_matches_rule(event, rule["logic"], snares_list):
                 hits.append(event)
-                print(f"[{rule["name"]}]\n"
+                print(f"\n[{rule["name"]}]\n"
                     f"{rule["description"]}\n"
-                    f"{event.get('eventTime')}\n"
-                    f"eventName: {event.get('eventName')} "
-                    f"sourceIPAddress: {event.get('sourceIPAddress')}\n"
-                    f"userIdentity: {event.get("userIdentity", {}).get("arn")}\n"
-                    f"resource: {event.get("resources", [])[0].get("ARN")}\n")
+                    f"- eventTime: {event.get('eventTime')}\n"
+                    f"- awsRegion: {event.get('awsRegion')}\n"
+                    f"- eventName: {event.get('eventName')}\n"
+                    f"- sourceIPAddress: {event.get('sourceIPAddress')}\n" 
+                    f"- userAgent: {event.get('userAgent')}\n"
+                    f"- userIdentity: {event.get("userIdentity", {}).get("arn")}"
+                )
+                if event["userIdentity"].get("userName"):
+                    print(f"- userName: {event['userIdentity']['userName']}")
+                if event.get("resources") and event["resources"][0].get("ARN"):
+                    print(f"- resource[0]: {event['resources'][0]['ARN']}")
+                if event.get("resources") and event["resources"][0].get("ARN"):
+                    print(f"- resource[1]: {event['resources'][1]['ARN']}")
+                if event.get("requestParameters") and event["requestParameters"].get("secretId"):
+                    print(f"- requestParameters: {event['requestParameters']['secretId']}")
     return hits
 
 
-def scan_directory(directory: str, rules: List[Dict[str, Any]]) -> List[Dict]:
+def scan_directory(directory: str, rules: List[Dict[str, Any]], snares_list: List) -> List[Dict]:
     """Scan all .gz files in a directory."""
     all_hits = []
-    print(f"Scanning {len(os.listdir(directory))} Cloudtrail files from '{directory}'... \n")
+    print(f"[+] Scanning {len(os.listdir(directory))} Cloudtrail files from '{directory}'... \n")
     for filename in os.listdir(directory):
         if filename.endswith(".gz"):
             filepath = os.path.join(directory, filename)
-            all_hits.extend(scan_file(filepath, rules))
+            all_hits.extend(scan_file(filepath, rules, snares_list))
     return all_hits
 
 def save_hits(hits: List[Dict], output_dir: str):
@@ -77,8 +96,9 @@ def detect_cloudtrail():
     print("\nAnalyzing logs\n")
 
     rules = load_rules_from_yaml("detection_rules.yaml")
-    results = scan_directory("logs_cloudtrail", rules)
+    snares_list = config_helpers.AWS_snares_arn_list_get()
+    results = scan_directory("logs_cloudtrail", rules, snares_list)
 
     if results:
         output_file = save_hits(results, "logs_detections")
-        print(f"[+] Saved {len(results)} hits to {output_file}")
+        print(f"\n[+] Saved {len(results)} hits to {output_file}")

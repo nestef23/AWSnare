@@ -112,6 +112,17 @@ def download_cloudtrail_logs(bucket_name, account_id, regions, start_date, end_d
         current_date += timedelta(days=1)
     print("Finished downloading logs")
 
+def cleanup_cloudtrail_logs():
+    download_dir = 'logs_cloudtrail'
+    if os.path.exists(download_dir):
+        for filename in os.listdir(download_dir):
+            file_path = os.path.join(download_dir, filename)
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"[!] Failed to delete {file_path}: {e}")
+    
+
 def attach_bucket_policy(bucket_name, account_id):
     """Attach the required bucket policy for CloudTrail."""
 
@@ -140,7 +151,7 @@ def attach_bucket_policy(bucket_name, account_id):
         ]
     }
 
-    print(f"[+] Attaching clouudtrail bucket policy to {bucket_name}")
+    print(f"[+] Attaching Cloudtrail bucket policy to {bucket_name}")
     s3.put_bucket_policy(
         Bucket=bucket_name,
         Policy=json.dumps(policy)

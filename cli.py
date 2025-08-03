@@ -20,7 +20,9 @@ def handle_get(args):
 
 def handle_create(args):
     if args.resource == "S3":
-        AWS_S3_helpers.create_s3_bucket(True)
+        AWS_S3_helpers.create_s3_bucket(snare=True)
+    elif args.resource == "secret":
+        AWS_secret_helpers.create_secret(snare=True)
     else:
         print(f"Unsupported resource for create: {args.resource}")
 

@@ -16,26 +16,32 @@ account_id = config_helpers.account_id_get()
 def detect_cloudtrail_events_locally():
     """Detect any activity regarding the snares that are set up"""
 
-    trail_region = input(f"Region where trail is located (default: {default_region}) ").strip() or default_region
-    client = boto3.client('cloudtrail', region_name=trail_region)
+    download = input(f"[?] Download fresh logs to analyze? yes/no (default: yes): ").strip()
+    if download not in ("n", "no", "N", "NO"):
+        trail_region = input(f"Region where trail is located (default: {default_region}) ").strip() or default_region
+        client = boto3.client('cloudtrail', region_name=trail_region)
 
-    trail_name = input(f"Enter the name of the configured trail: (default: {cloudtrail_trail_name}) ").strip() or cloudtrail_trail_name
-    response = client.get_trail(Name=trail_name)
-    S3_bucket_name = response['Trail']['S3BucketName']
+        trail_name = input(f"Enter the name of the configured trail: (default: {cloudtrail_trail_name}) ").strip() or cloudtrail_trail_name
+        response = client.get_trail(Name=trail_name)
+        S3_bucket_name = response['Trail']['S3BucketName']
 
-    start_date_tmp = date.today() - timedelta(days=7)
-    user_input = input(f"Detection start date (YYYY-MM-DD, default: {start_date_tmp}): ").strip()
-    if user_input:
-            start_date = datetime.strptime(user_input, "%Y-%m-%d").date()
-    else:
-        start_date = start_date_tmp
-    end_date = date.today()
+        start_date_tmp = date.today() - timedelta(days=1)
+        user_input = input(f"Detection start date (YYYY-MM-DD, default: {start_date_tmp}): ").strip()
+        if user_input:
+                start_date = datetime.strptime(user_input, "%Y-%m-%d").date()
+        else:
+            start_date = start_date_tmp
+        end_date = date.today()
 
-    print(f"[+] Downloading Cloudtrail logs from bucket {S3_bucket_name} for configured regions {all_regions}")
+        print(f"[+] Downloading Cloudtrail logs from bucket {S3_bucket_name} for configured regions {all_regions}")
 
-    AWS_S3_helpers.download_cloudtrail_logs(S3_bucket_name, account_id, all_regions, start_date, end_date)
+        AWS_S3_helpers.download_cloudtrail_logs(S3_bucket_name, account_id, all_regions, start_date, end_date)
 
     detection_logic.detect_cloudtrail()
+
+    cleanup = input("\n[?] Delete downloaded logs? yes/no (default: no): ").strip().lower()
+    if cleanup in ("y", "yes", "Y", "YES"):
+        AWS_S3_helpers.cleanup_cloudtrail_logs()
 
 def update_selectors(trail_region = "", trail_name = ""):
     ARN_list = config_helpers.AWS_snares_arn_list_get()
@@ -52,15 +58,15 @@ def update_selectors(trail_region = "", trail_name = ""):
         EventSelectors=[
             {
                 "ReadWriteType": "All",  # or 'ReadOnly' / 'WriteOnly'
-                "IncludeManagementEvents": False,  # No management events
+                "IncludeManagementEvents": True,
+                "ExcludeManagementEventSources": [
+                    "kms.amazonaws.com",
+                    "rdsdata.amazonaws.com"
+                ],
                 "DataResources": [
                     {
                         "Type": "AWS::S3::Object",  # or AWS::Lambda::Function
                         "Values": [r+"/" for r in ARN_list if ":s3:::" in r]
-                    },
-                    {
-                        "Type": "AWS::Lambda::Function",
-                        "Values": [r for r in ARN_list if ":lambda:" in r]
                     }
                 ]
             }
@@ -88,8 +94,8 @@ def create_cloudtrail_trail():
         Name=trail_name,
         S3BucketName=trail_bucket_name,
         #SnsTopicName='string', TODO implement SNS?
-        IncludeGlobalServiceEvents=False,
-        IsMultiRegionTrail=False,
+        IncludeGlobalServiceEvents=True,
+        IsMultiRegionTrail=True,
         IsOrganizationTrail=False,
         TagsList=[
             {

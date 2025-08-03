@@ -1,6 +1,12 @@
 rules:
   - name: S3_download_file
-    description: File was downloaded from the S3 bucket.
+    description: Detect when file is downloaded from the S3 bucket.
     logic:
       eventSource: s3.amazonaws.com
       eventName: GetObject
+
+  - name: SecretsManager_secret_reveal
+    description: Detect when an AWS secret is retrieved.
+    logic:
+      eventSource: secretsmanager.amazonaws.com
+      eventName: GetSecretValue
